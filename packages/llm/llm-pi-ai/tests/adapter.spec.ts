@@ -14,7 +14,7 @@ import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { resolveProfiles } from '../src/config.ts'
 import { assemble } from './assemble.ts'
-import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
+import { closeMockServers, mockServer, proxyServer, textEvents } from './mock-server.ts'
 
 afterEach(async () => {
   vi.unstubAllEnvs()
@@ -81,6 +81,25 @@ describe('PiAiAdapter provider routing', () => {
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
     expect(server.headers[0]?.['x-company']).toBe('private')
     expect(server.headers[0]?.['user-agent']).toBe(userAgent())
+  })
+
+  it('routes every request through the profile proxy', async () => {
+    const upstream = await mockServer([{ events: textEvents }])
+    const relay = await proxyServer(upstream.url)
+    const ctx = await harness(upstream.url, { proxy: relay.url })
+    const result = await assemble(ctx, {
+      model: 'deepseek-v4-flash',
+      messages: [createUserMessage({
+        content: [{ type: 'text', text: 'hi' }],
+        source: { kind: 'plugin', plugin: 'test' },
+      })],
+    })
+    expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
+    // The relay saw the request and stamped its marker header onto the
+    // forwarded copy: the model request went through the proxy, not straight
+    // to the upstream endpoint.
+    expect(relay.paths).toContain('/chat/completions')
+    expect(upstream.headers.some(headers => headers['x-via-proxy'] === '1')).toBe(true)
   })
 
   it('forwards common stream options and profile reasoning', async () => {

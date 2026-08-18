@@ -41,6 +41,9 @@
         - textbox "API 地址":
           - /placeholder: https://gateway.acme.example/v1
           - text: https://gateway.acme.example/v1
+        - text: HTTP 代理
+        - textbox "HTTP 代理":
+          - /placeholder: 如 http://127.0.0.1:10810
         - text: API 协议
         - combobox "API 协议":
           - option "openai-completions" [selected]

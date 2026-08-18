@@ -25,7 +25,14 @@
 import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey } from '@deepseek-ai/dsh-llm'
 import type { LlmDiscoveredModel, LlmModelDiscoveryRequest } from '@deepseek-ai/dsh-llm'
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
+import { createProxyFetch } from '@earendil-works/pi-ai'
 import { catalogModels } from './catalog.ts'
+
+// The pi-ai patch adds this transport helper beyond the published declaration
+// surface; the runtime export exists, the type is supplied here.
+declare module '@earendil-works/pi-ai' {
+  export function createProxyFetch(proxyUrl: string): typeof fetch
+}
 
 /**
  * Protocols whose model listing this module can read: the two that speak
@@ -195,6 +202,7 @@ function usableProbeKey(raw: string): string {
 export async function discoverModels(
   request: LlmModelDiscoveryRequest,
   storedApiKey?: () => Promise<string | undefined>,
+  proxy?: string,
 ): Promise<readonly LlmDiscoveredModel[]> {
   // A catalog route already has its answer, and a better one: the installed
   // entries carry context windows and output caps no listing endpoint reports.
@@ -241,7 +249,10 @@ export async function discoverModels(
   const apiKey = supplied === undefined ? undefined : usableProbeKey(supplied)
   let response: Response
   try {
-    response = await fetch(url, {
+    // A proxy-configured route interrogates its endpoint through that proxy —
+    // the same transport the profile's model requests use.
+    const proxyFetch = proxy === undefined ? undefined : createProxyFetch(proxy)
+    response = await (proxyFetch ?? fetch)(url, {
       method: 'GET',
       headers: {
         accept: 'application/json',

@@ -76,6 +76,14 @@ export interface PiAiProviderProfile {
   /** Endpoint for this route's models; defaults to the installed catalog's endpoint. */
   baseURL?: string
   /**
+   * HTTP(S) proxy every request on this route is routed through, named as a
+   * URL (`http://host:port`). The request URL stays `baseURL`; only the
+   * transport goes via the proxy, exactly like an `HTTP_PROXY` environment
+   * variable would for a standard client. This is the seam that reaches a
+   * gateway bound to a remote loopback address through a relay proxy.
+   */
+  proxy?: string
+  /**
    * This route's model catalog. Omission serves the installed catalog for the
    * route unchanged; an explicit list replaces it, each entry defaulting its
    * unset fields from the installed model of the same id.
@@ -234,6 +242,7 @@ const profile = z.object({
   displayName: z.string(),
   api: z.union(supportedProtocols()),
   baseURL: z.string(),
+  proxy: z.string(),
   models: z.array(modelProfile),
   modelOverrides: z.dict(modelOverride),
   compat: compatProfile,
@@ -311,6 +320,19 @@ export function resolveProfiles(
     if (provider.length === 0) throw new Error('llm-pi-ai: provider names must be non-empty')
     if (source.baseURL !== undefined && source.baseURL.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty baseURL`)
+    }
+    if (source.proxy !== undefined) {
+      let parsed: URL
+      try {
+        parsed = new URL(source.proxy)
+      } catch {
+        throw new Error(`llm-pi-ai: provider "${provider}" proxy "${source.proxy}" is not a valid URL`)
+      }
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error(
+          `llm-pi-ai: provider "${provider}" proxy "${source.proxy}" must use http:// or https:// (got ${parsed.protocol})`,
+        )
+      }
     }
     if (source.displayName !== undefined && source.displayName.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`)

@@ -422,6 +422,26 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 }}
               />
             </div>
+            {/* The proxy routes this route's requests through an HTTP(S) relay;
+                the pi-ai transport honors it, the deepseek adapter does not. */}
+            {family === 'pi-ai'
+              ? (
+                <div className={styles['field']}>
+                  <span className={styles['fieldLabel']}>{t('proxyInput')}</span>
+                  <input
+                    className={styles['input']}
+                    type="text"
+                    value={stringAt(draft, 'proxy') ?? ''}
+                    placeholder={t('proxyPlaceholder')}
+                    aria-label={t('proxyInput')}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setField('proxy', event.target.value === '' ? undefined : event.target.value)
+                    }}
+                  />
+                </div>
+              )
+              : null}
             {/* The protocol sits beside the endpoint it describes, as it does
                 on the create card. */}
             {ownsIdentity

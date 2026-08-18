@@ -18,6 +18,31 @@ const routeWith = (profile: Record<string, unknown>): (() => unknown) =>
 const configWith = (model: Record<string, unknown>): (() => unknown) =>
   routeWith({ models: [{ id: 'm', ...model }] })
 
+describe('proxy schema boundary', () => {
+  it('accepts an http(s) proxy URL on a hand-declared route', () => {
+    expect(() => { assertServiceable(routeWith({ proxy: 'http://10.221.113.188:10810' })() as Config) }).not.toThrow()
+    expect(() => { assertServiceable(routeWith({ proxy: 'https://proxy.example:8443' })() as Config) }).not.toThrow()
+  })
+
+  it('rejects a proxy that is not a valid URL', () => {
+    expect(() => { assertServiceable(routeWith({ proxy: 'not a url' })() as Config) })
+      .toThrow(/proxy "not a url" is not a valid URL/)
+  })
+
+  it('rejects a proxy whose protocol is not http(s)', () => {
+    expect(() => { assertServiceable(routeWith({ proxy: 'socks5://127.0.0.1:1080' })() as Config) })
+      .toThrow(/must use http:\/\/ or https:\/\//)
+  })
+
+  it('accepts an empty proxy string through the schema and refuses it at serviceability', () => {
+    // The schema accepts any string (empty included), matching baseURL; the
+    // namespace validator is what refuses a route the adapter cannot serve.
+    expect(routeWith({ proxy: '' })).not.toThrow()
+    expect(() => { assertServiceable(routeWith({ proxy: '' })() as Config) })
+      .toThrow(/proxy "" is not a valid URL/)
+  })
+})
+
 describe('reasoning schema boundary', () => {
   it('rejects a level pi-ai does not know at the write that produced it', () => {
     expect(configWith({ reasoningEfforts: { ultra: 'x' } })).toThrow(/"off"/)
